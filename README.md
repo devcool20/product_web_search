@@ -14,8 +14,8 @@ This is a full-stack application that can fetch the price of a given product fro
 
 1.  **Clone the repository and install dependencies:**
     ```bash
-    git clone <your-repo-url>
-    cd <your-repo-name>
+    git clone product_web_search
+    cd product_web_search
     pip install -r requirements.txt
     ```
 
