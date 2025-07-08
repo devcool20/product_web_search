@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Price Fetcher</title>
+    <!-- Pico.css for instant, clean styling -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+    
+    <!-- Embedded CSS -->
+    <style>
+        body {
+            padding-bottom: 4rem;
+        }
+        /* Add a red border to error messages */
+        .error-card {
+            border-color: var(--pico-color-red-550);
+            border-width: 2px;
+        }
+        .error-card p {
+            color: var(--pico-color-red-550);
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <header>
+            <h1>Universal Price Fetcher 🤖</h1>
+            <p>Enter a product and country to find the best prices across the web.</p>
+        </header>
+
+        <form id="search-form">
+            <div class="grid">
+                <input type="text" id="query-input" name="query" placeholder="e.g., Sony WH-1000XM5 headphones" required>
+                <select id="country-input" name="country" required>
+                    <option value="US" selected>United States (US)</option>
+                    <option value="IN">India (IN)</option>
+                    <option value="GB">United Kingdom (GB)</option>
+                    <option value="CA">Canada (CA)</option>
+                    <option value="AU">Australia (AU)</option>
+                    <option value="DE">Germany (DE)</option>
+                </select>
+            </div>
+            <button type="submit" id="search-button">Fetch Prices</button>
+        </form>
+
+        <hr>
+
+        <div id="results-container">
+            <p>Your search results will appear here.</p>
+        </div>
+    </main>
+
+    <!-- Embedded JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchForm = document.getElementById('search-form');
+            const queryInput = document.getElementById('query-input');
+            const countryInput = document.getElementById('country-input');
+            const searchButton = document.getElementById('search-button');
+            const resultsContainer = document.getElementById('results-container');
+
+            searchForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const query = queryInput.value.trim();
+                const country = countryInput.value;
+
+                if (!query) {
+                    renderError("Please enter a product to search for.");
+                    return;
+                }
+
+                searchButton.setAttribute('aria-busy', 'true');
+                searchButton.disabled = true;
+                resultsContainer.innerHTML = '<p>Searching the web with AI... This might take a moment.</p>';
+
+                try {
+                    const response = await fetch('/fetch-prices', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'accept': 'application/json'
+                        },
+                        body: JSON.stringify({ query, country })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.detail || "An unknown error occurred.");
+                    }
+                    renderResults(data);
+                } catch (error) {
+                    renderError(error.message);
+                } finally {
+                    searchButton.removeAttribute('aria-busy');
+                    searchButton.disabled = false;
+                }
+            });
+
+            function renderResults(results) {
+                resultsContainer.innerHTML = '';
+                if (results.length === 0) {
+                    resultsContainer.innerHTML = '<p>No products found matching your query. Try being more specific or check your spelling.</p>';
+                    return;
+                }
+                results.forEach(product => {
+                    const article = document.createElement('article');
+                    const formattedPrice = new Intl.NumberFormat(undefined, {
+                        style: 'currency',
+                        currency: product.currency,
+                    }).format(product.price);
+                    article.innerHTML = `
+                        <h4>${product.productName}</h4>
+                        <p><strong>Price:</strong> ${formattedPrice}</p>
+                        <footer>
+                            <a href="${product.link}" target="_blank" role="button" class="contrast">View on Store</a>
+                        </footer>
+                    `;
+                    resultsContainer.appendChild(article);
+                });
+            }
+
+            function renderError(message) {
+                resultsContainer.innerHTML = `
+                    <article class="error-card">
+                        <p><strong>Error:</strong> ${message}</p>
+                    </article>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

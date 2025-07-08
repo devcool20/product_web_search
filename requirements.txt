@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+requests
+beautifulsoup4
+python-dotenv
+google-generativeai #Gemini API
+google-api-python-client #Google Search API
