@@ -104,7 +104,7 @@ async def extract_product_data_with_gemini(url: str, user_query: str) -> Product
         prompt = f"Analyze the HTML from a product webpage. The user is searching for: '{user_query}'. Identify the main product's name, its price, and currency. Check if the product is relevant to the user's query. HTML: ```html {html_content} ```"
         system_instruction = """You are an expert data extraction bot. Your response MUST be a single, clean JSON object. The JSON must have three keys: "productName" (string), "price" (number), and "currency" (string). The 'price' value MUST be a number (integer or float). The 'currency' value MUST be a standard 3-letter ISO 4217 currency code (e.g., "USD", "INR", "EUR"), not a symbol. If you cannot find all required information or if the product is not relevant, your entire response must be the single word: null. Do not include any other text or markdown."""
         
-        model = genai.GenerativeModel('gemini-1.5-flash-latest', system_instruction=system_instruction)
+        model = genai.GenerativeModel('gemini-2.5-flash-latest', system_instruction=system_instruction)
         gemini_response = await asyncio.to_thread(
             model.generate_content, 
             prompt, 
