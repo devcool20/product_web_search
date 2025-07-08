@@ -4,22 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Universal Price Fetcher</title>
-    <!-- Pico.css for instant, clean styling -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
-    
-    <!-- Embedded CSS -->
     <style>
-        body {
-            padding-bottom: 4rem;
-        }
-        /* Add a red border to error messages */
-        .error-card {
-            border-color: var(--pico-color-red-550);
-            border-width: 2px;
-        }
-        .error-card p {
-            color: var(--pico-color-red-550);
-        }
+        body { padding-bottom: 4rem; }
+        .error-card { border-color: var(--pico-color-red-550); border-width: 2px; }
+        .error-card p { color: var(--pico-color-red-550); }
     </style>
 </head>
 
@@ -52,57 +41,91 @@
         </div>
     </main>
 
-    <!-- Embedded JavaScript -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const searchForm = document.getElementById('search-form');
-            const queryInput = document.getElementById('query-input');
-            const countryInput = document.getElementById('country-input');
             const searchButton = document.getElementById('search-button');
             const resultsContainer = document.getElementById('results-container');
+            let pollingInterval; // To hold the interval ID
 
             searchForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
+                if (pollingInterval) clearInterval(pollingInterval); // Clear any previous polling
 
-                const query = queryInput.value.trim();
-                const country = countryInput.value;
+                const query = document.getElementById('query-input').value.trim();
+                const country = document.getElementById('country-input').value;
 
                 if (!query) {
                     renderError("Please enter a product to search for.");
                     return;
                 }
 
-                searchButton.setAttribute('aria-busy', 'true');
-                searchButton.disabled = true;
-                resultsContainer.innerHTML = '<p>Searching the web with AI... This might take a moment.</p>';
+                setLoadingState(true, 'Starting search...');
 
                 try {
-                    const response = await fetch('/fetch-prices', {
+                    // Step 1: Start the search job
+                    const startResponse = await fetch('/start-search', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'accept': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json', 'accept': 'application/json' },
                         body: JSON.stringify({ query, country })
                     });
 
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(data.detail || "An unknown error occurred.");
+                    if (startResponse.status !== 202) {
+                        const errorData = await startResponse.json();
+                        throw new Error(errorData.detail || "Failed to start the search process.");
                     }
-                    renderResults(data);
+
+                    const { task_id } = await startResponse.json();
+                    setLoadingState(true, 'Searching the web with AI... This might take up to 30 seconds.');
+                    
+                    // Step 2: Poll for results
+                    pollForResults(task_id);
+
                 } catch (error) {
                     renderError(error.message);
-                } finally {
-                    searchButton.removeAttribute('aria-busy');
-                    searchButton.disabled = false;
+                    setLoadingState(false);
                 }
             });
+            
+            function pollForResults(taskId) {
+                pollingInterval = setInterval(async () => {
+                    try {
+                        const statusResponse = await fetch(`/search-status/${taskId}`);
+                        if (!statusResponse.ok) {
+                           throw new Error("Polling failed. The server might be busy.");
+                        }
+                        
+                        const result = await statusResponse.json();
+
+                        if (result.status === 'completed') {
+                            clearInterval(pollingInterval);
+                            setLoadingState(false);
+                            renderResults(result.data);
+                        } else if (result.status === 'failed') {
+                            clearInterval(pollingInterval);
+                            setLoadingState(false);
+                            renderError(result.data || "The search failed for an unknown reason.");
+                        }
+                        // If status is 'pending', the loop continues automatically.
+                    } catch (error) {
+                        clearInterval(pollingInterval);
+                        setLoadingState(false);
+                        renderError(error.message);
+                    }
+                }, 3000); // Poll every 3 seconds
+            }
+
+            function setLoadingState(isLoading, message = '') {
+                searchButton.disabled = isLoading;
+                searchButton.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+                if (isLoading) {
+                    resultsContainer.innerHTML = `<p>${message}</p>`;
+                }
+            }
 
             function renderResults(results) {
                 resultsContainer.innerHTML = '';
-                if (results.length === 0) {
+                if (!results || results.length === 0) {
                     resultsContainer.innerHTML = '<p>No products found matching your query. Try being more specific or check your spelling.</p>';
                     return;
                 }
