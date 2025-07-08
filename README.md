@@ -2,9 +2,11 @@
 
 This is a full-stack application that can fetch the price of a given product from multiple websites based on the country, using Google's Gemini 1.5 Flash AI model for data extraction.
 
+![image](https://github.com/user-attachments/assets/b64f1f4c-4eb8-407d-8e8f-4d0166724991)
+
 ### Hosted URL
 
-**You can test the live application here: [Your Vercel URL]**
+**You can test the live application here: https://product-web-search.vercel.app/**
 
 ---
 
